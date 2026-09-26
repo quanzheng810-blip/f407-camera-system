@@ -1,0 +1,63 @@
+# Local reference material (large vendor archives and extracted examples)
+/project_references/
+/摄像头0V5640资料/
+
+# Build output
+build/
+out/
+dist/
+*.map
+*.hex
+*.bin
+*.elf
+*.axf
+*.o
+*.obj
+*.d
+*.su
+*.crf
+*.lnp
+*.sct
+*.build_log.htm
+firmware/Project/MDK-ARM/Objects/
+firmware/Project/MDK-ARM/Listings/
+firmware/Project/MDK-ARM/*build*.log
+
+# Keil / STM32CubeIDE generated user state
+*.uvguix.*
+*.uvoptx
+*.scvd
+*.dep
+*.launch
+.settings/
+Debug/
+Release/
+
+# Python server
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Web / mobile / desktop generated output
+node_modules/
+.dart_tool/
+.packages
+.flutter-plugins*
+cmake-build-*/
+
+# IDE and OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Runtime data and secrets
+.env
+.env.*
+!.env.example
+logs/
+captures/
+snapshots/

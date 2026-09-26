@@ -1,0 +1,11 @@
+#ifndef RVM_FEATURE_CONFIG_H
+#define RVM_FEATURE_CONFIG_H
+
+#define RVM_FEATURE_CAMERA       1
+#define RVM_FEATURE_DISPLAY      1
+#define RVM_FEATURE_AUTO_FOCUS   1
+#define RVM_FEATURE_NETWORK      0
+#define RVM_FEATURE_FREERTOS     0
+#define RVM_FEATURE_LVGL         0
+
+#endif /* RVM_FEATURE_CONFIG_H */
