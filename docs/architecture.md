@@ -30,7 +30,7 @@ App -> Services -> BSP -> Platform
 
 依赖只能沿箭头向下。野火 `bsp_*` API 是 BSP 内部实现细节，不向 Service/App 泄漏。
 
-## 3. Phase 1 模块定义
+## 3. Firmware 模块定义
 
 ### Camera Driver
 
@@ -64,6 +64,22 @@ App -> Services -> BSP -> Platform
 - 依赖：LCD Driver，必要时使用 JPEG 解码组件。
 - 边界：不改写正在 CAPTURING/SENDING 的 Buffer。
 
+### Network Service
+
+- 目标：管理 LAN8720 链路、lwIP netif、DHCP 和后续设备 TCP 会话。
+- 输入：PHY 链路状态、DHCP 状态和协议收发事件。
+- 输出：网络状态、IPv4 地址和后续视频传输接口。
+- 依赖：Ethernet BSP、lwIP、FreeRTOS 和时间源。
+- 边界：不直接访问相机 DMA，也不拥有视频帧内存。
+
+### UI Service
+
+- 目标：通过 LVGL 显示系统、相机和网络状态。
+- 输入：Service 层只读状态与统计信息。
+- 输出：ILI9806G 绘制请求。
+- 依赖：LVGL display port、Display/Camera/Network service。
+- 边界：不直接配置 DCMI、Ethernet 或 GPIO。
+
 ## 4. 核心数据结构
 
 - `VideoFrameMeta`：帧 ID、时间戳、宽高、格式、有效长度。
@@ -92,9 +108,9 @@ infrastructure sockets, clocks, persistence and metrics adapters
 
 Domain 不引用 FastAPI、WebSocket 或数据库对象。
 
-## 7. Phase 1 过渡边界
+## 7. Phase 2 过渡边界
 
-当前已完成代码依赖分层和 Keil 分组重构，但为保持野火 4.3 寸例程的上板行为，采集数据仍由 DCMI DMA 直接写入 LCD FSMC 数据寄存器。因此 Phase 1 尚未具备真正的 Frame Buffer 所有权流转；`Components/buffer_pool` 是后续采集、显示、网络解耦的接口位置。完成硬件稳定性验收后，再将数据路径升级为：
+当前已完成代码依赖分层、FreeRTOS 调度、lwIP/DHCP、LAN8720 标准库 BSP 和 LVGL display port。为保持野火 4.3 寸例程的上板行为，采集数据仍由 DCMI DMA 直接写入 LCD FSMC 数据寄存器。因此 Phase 2 尚未具备真正的 Frame Buffer 所有权流转；`Components/buffer_pool` 是后续采集、显示、网络解耦的接口位置。完成硬件稳定性验收后，再将数据路径升级为：
 
 ```text
 DCMI DMA -> Fixed Buffer Pool -> Display/Network consumers

@@ -3,7 +3,7 @@
 ## 测试步骤
 
 1. 核对 LCD 为野火 4.3 寸 ILI9806G，正确安装 OV5640。
-2. 打开 `firmware/Project/MDK-ARM/RVM_F407_Phase1.uvprojx`。
+2. 如需复现该阶段，先切换到 Git tag `v0.1.0-phase1`，再打开 `firmware/Project/MDK-ARM/RVM_F407_Phase1.uvprojx`。
 3. Build target，确认 0 errors / 0 warnings。
 4. 选择实际 DAP/ST-Link 调试器，下载后复位。
 5. 观察 LCD 初始化文字、OV5640 ID 检测结果和 320x240 实时画面。

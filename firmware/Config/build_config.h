@@ -6,7 +6,7 @@
 #endif
 
 #if !defined(RVM_LCD_ILI9806G)
-#error "The Phase 1 target requires RVM_LCD_ILI9806G"
+#error "The RVM F407 target requires RVM_LCD_ILI9806G"
 #endif
 
 #endif /* RVM_BUILD_CONFIG_H */

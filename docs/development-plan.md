@@ -1,6 +1,6 @@
 # 分阶段开发计划
 
-## Phase 0 - 工程基线（当前）
+## Phase 0 - 工程基线（已完成）
 
 - 建立 Monorepo、分层目录、编码规则和接口契约。
 - 核对 F407 霸天虎 V2、OV5640 和实际 LCD 型号。
@@ -22,6 +22,21 @@
 - 串口可输出 OV5640 ID、分辨率、帧率和错误计数。
 - 拔插摄像头或制造采集错误时，系统进入可观测的 ERROR 状态，不静默卡死。
 
+## Phase 2 - RTOS / Network / GUI Integration（当前）
+
+- FreeRTOS 9.0.0 接管 SysTick、SVC 和 PendSV。
+- lwIP 2.1.2 使用 FreeRTOS sys_arch，支持 DHCP、TCP/UDP、Netconn 和 Socket API。
+- LAN8720 通过 STM32F407 RMII MAC 接入；底层为 STM32 标准库驱动，不引入 HAL。
+- LVGL 8.3.11 接入 4.3 寸 ILI9806G，heap 和 draw buffer 放到板载外部 SRAM。
+- UI 显示相机统计、网线状态和 DHCP 地址。
+
+### Phase 2 验收
+
+- Keil ARMCC5 Rebuild All 为 0 errors / 0 warnings。
+- 启动后可进入 FreeRTOS 调度，LVGL UI 持续响应，无 malloc/stack overflow hook。
+- 插入网线后可从 DHCP 获取地址，LCD 显示地址，PC 可 ping 通设备。
+- 拔插网线后链路状态可恢复，相机预览不发生 HardFault。
+
 ## 后续 Phase
 
-FreeRTOS 任务化 -> lwIP/DHCP/TCP -> JPEG 单帧上传 -> 连续流 -> WebSocket Viewer -> Device Manager -> Remote Control -> Qt -> Flutter -> 性能优化。
+固定 Frame Buffer Pool -> JPEG 单帧上传 -> 连续流 -> WebSocket Viewer -> Device Manager -> Remote Control -> Qt -> Flutter -> 性能优化。
