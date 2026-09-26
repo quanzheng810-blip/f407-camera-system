@@ -34,6 +34,10 @@ static err_t RVM_ETH_LowLevelOutput(struct netif *netif, struct pbuf *packet)
     uint16_t offset = 0U;
 
     (void)netif;
+    if ((packet == NULL) || (s_tx_mutex == NULL))
+    {
+        return ERR_ARG;
+    }
     if ((packet->tot_len > ETH_TX_BUF_SIZE) ||
         (xSemaphoreTake(s_tx_mutex, RVM_ETH_TX_WAIT_TICKS) != pdTRUE))
     {
@@ -121,7 +125,7 @@ static void RVM_ETH_InputTask(void *argument)
     }
 }
 
-static void RVM_ETH_LowLevelInit(struct netif *netif)
+static err_t RVM_ETH_LowLevelInit(struct netif *netif)
 {
     uint32_t index;
 
@@ -131,7 +135,18 @@ static void RVM_ETH_LowLevelInit(struct netif *netif)
     netif->flags = NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP;
 
     s_rx_semaphore = xSemaphoreCreateCounting(20U, 0U);
+    if (s_rx_semaphore == NULL)
+    {
+        return ERR_MEM;
+    }
+
     s_tx_mutex = xSemaphoreCreateMutex();
+    if (s_tx_mutex == NULL)
+    {
+        vSemaphoreDelete(s_rx_semaphore);
+        s_rx_semaphore = NULL;
+        return ERR_MEM;
+    }
 
     ETH_MACAddressConfig(ETH_MAC_Address0, netif->hwaddr);
     ETH_DMATxDescChainInit(DMATxDscrTab, &Tx_Buff[0][0], ETH_TXBUFNB);
@@ -141,13 +156,22 @@ static void RVM_ETH_LowLevelInit(struct netif *netif)
         ETH_DMARxDescReceiveITConfig(&DMARxDscrTab[index], ENABLE);
     }
 
-    (void)xTaskCreate(RVM_ETH_InputTask,
-                      "ETH-RX",
-                      RVM_ETH_INPUT_STACK_WORDS,
-                      netif,
-                      RVM_ETH_INPUT_PRIORITY,
-                      NULL);
+    if (xTaskCreate(RVM_ETH_InputTask,
+                    "ETH-RX",
+                    RVM_ETH_INPUT_STACK_WORDS,
+                    netif,
+                    RVM_ETH_INPUT_PRIORITY,
+                    NULL) != pdPASS)
+    {
+        vSemaphoreDelete(s_tx_mutex);
+        vSemaphoreDelete(s_rx_semaphore);
+        s_tx_mutex = NULL;
+        s_rx_semaphore = NULL;
+        return ERR_MEM;
+    }
+
     ETH_Start();
+    return ERR_OK;
 }
 
 err_t ethernetif_init(struct netif *netif)
@@ -161,8 +185,7 @@ err_t ethernetif_init(struct netif *netif)
     netif->name[1] = '0';
     netif->output = etharp_output;
     netif->linkoutput = RVM_ETH_LowLevelOutput;
-    RVM_ETH_LowLevelInit(netif);
-    return ERR_OK;
+    return RVM_ETH_LowLevelInit(netif);
 }
 
 void ETH_IRQHandler(void)

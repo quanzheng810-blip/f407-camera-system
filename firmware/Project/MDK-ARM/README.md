@@ -26,7 +26,7 @@
 
 已在本机 Keil MDK 5 上执行 **Rebuild All**：0 errors, 0 warnings。
 
-构建占用：Code=200848，RO-data=25488，RW-data=5964，ZI-data=84420 bytes。
+构建占用：Code=201012，RO-data=25488，RW-data=5964，ZI-data=84420 bytes。
 
 ## Keil 分组
 

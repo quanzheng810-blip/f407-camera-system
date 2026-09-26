@@ -32,6 +32,8 @@ Ethernet 中断优先级为 6，低于 `configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIO
 5. 等待 LCD 从 `link down` / `DHCP...` 更新为 IPv4 地址。
 6. 在 PC 上 ping LCD 显示的地址，并连续拔插一次网线验证恢复。
 
+若设备上电时未连接网线，网络服务会每 2 秒重试 PHY 初始化；后续插入网线后应自动进入 DHCP 流程，无需重启设备。
+
 ## 已知边界
 
 - 当前 MAC 地址是本地管理地址 `02:40:7A:10:00:01`；多块设备同时接入前必须生成唯一地址。

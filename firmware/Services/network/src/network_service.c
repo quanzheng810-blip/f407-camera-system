@@ -12,11 +12,15 @@
 #include "rvm_timebase.h"
 #include "ui_service.h"
 
-#define RVM_NETWORK_POLL_PERIOD_MS  500U
+#define RVM_NETWORK_POLL_PERIOD_MS   500U
+#define RVM_NETWORK_RETRY_PERIOD_MS  2000U
 
 static struct netif s_netif;
 static NetworkState s_state = NETWORK_STATE_DISABLED;
 static uint32_t s_last_poll_ms;
+static bool s_tcpip_started;
+static bool s_eth_initialized;
+static bool s_netif_added;
 
 static void RVM_NetworkService_UpdateStatus(void)
 {
@@ -50,27 +54,41 @@ bool RVM_NetworkService_Init(void)
     ip4_addr_t any_address;
 
     s_state = NETWORK_STATE_INIT;
+    s_last_poll_ms = RVM_Timebase_GetMilliseconds();
     RVM_UIService_SetNetworkStatus("Network\ninitializing");
-    if (!RVM_ETH_Init())
+    if (!s_tcpip_started)
     {
-        s_state = NETWORK_STATE_BACKOFF;
-        RVM_UIService_SetNetworkStatus("Network\nPHY init failed");
-        return false;
+        tcpip_init(NULL, NULL);
+        s_tcpip_started = true;
     }
 
-    tcpip_init(NULL, NULL);
-    ip4_addr_set_zero(&any_address);
-    if (netifapi_netif_add(&s_netif,
-                           &any_address,
-                           &any_address,
-                           &any_address,
-                           NULL,
-                           ethernetif_init,
-                           tcpip_input) != ERR_OK)
+    if (!s_eth_initialized)
     {
-        s_state = NETWORK_STATE_BACKOFF;
-        RVM_UIService_SetNetworkStatus("Network\nnetif failed");
-        return false;
+        if (!RVM_ETH_Init())
+        {
+            s_state = NETWORK_STATE_BACKOFF;
+            RVM_UIService_SetNetworkStatus("Network\nPHY retrying");
+            return false;
+        }
+        s_eth_initialized = true;
+    }
+
+    if (!s_netif_added)
+    {
+        ip4_addr_set_zero(&any_address);
+        if (netifapi_netif_add(&s_netif,
+                               &any_address,
+                               &any_address,
+                               &any_address,
+                               NULL,
+                               ethernetif_init,
+                               tcpip_input) != ERR_OK)
+        {
+            s_state = NETWORK_STATE_BACKOFF;
+            RVM_UIService_SetNetworkStatus("Network\nnetif retrying");
+            return false;
+        }
+        s_netif_added = true;
     }
 
     (void)netifapi_netif_set_default(&s_netif);
@@ -86,7 +104,6 @@ bool RVM_NetworkService_Init(void)
     (void)netifapi_dhcp_start(&s_netif);
 
     s_state = NETWORK_STATE_CONNECTING;
-    s_last_poll_ms = 0U;
     RVM_NetworkService_UpdateStatus();
     return true;
 }
@@ -97,13 +114,22 @@ void RVM_NetworkService_Process(void)
     uint32_t now_ms;
 
     if ((s_state == NETWORK_STATE_DISABLED) ||
-        (s_state == NETWORK_STATE_INIT) ||
-        (s_state == NETWORK_STATE_BACKOFF))
+        (s_state == NETWORK_STATE_INIT))
     {
         return;
     }
 
     now_ms = RVM_Timebase_GetMilliseconds();
+    if (s_state == NETWORK_STATE_BACKOFF)
+    {
+        if ((uint32_t)(now_ms - s_last_poll_ms) >=
+            RVM_NETWORK_RETRY_PERIOD_MS)
+        {
+            (void)RVM_NetworkService_Init();
+        }
+        return;
+    }
+
     if ((uint32_t)(now_ms - s_last_poll_ms) < RVM_NETWORK_POLL_PERIOD_MS)
     {
         return;
