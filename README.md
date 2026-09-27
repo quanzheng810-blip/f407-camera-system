@@ -1,26 +1,32 @@
 # STM32F407 Embedded Remote Video Monitoring System
 
-基于 STM32F407、STM32 标准外设库、OV5640、FreeRTOS、lwIP 的嵌入式远程视频监控系统。设备端只与服务器保持一条持久 TCP 连接，服务器负责设备管理、视频帧缓存和多客户端分发。
+基于 STM32F407、STM32 标准外设库、OV5640、FreeRTOS、lwIP 和 LVGL 的嵌入式远程视频监控系统。设备端后续只与服务器保持一条持久 TCP 连接，服务器负责设备管理、视频帧缓存和多客户端分发。
 
 ## 当前阶段
 
-Phase 1：Camera Bring-up。
+Phase 2：FreeRTOS + lwIP + LVGL 基础集成。
 
-首个可验收目标是：
+当前设备端基础链路是：
 
 ```text
-OV5640 -> DCMI -> DMA -> Frame Buffer -> LCD
+OV5640 -> DCMI -> DMA -> LCD
+FreeRTOS -> App/UI/Network tasks
+LAN8720 -> STM32F4 Ethernet MAC -> lwIP 2.1.2 -> DHCP
+LVGL 8.3.11 -> ILI9806G 800x480
 ```
 
-当前已建立可直接使用 Keil MDK 打开和编译的 Phase 1 工程，硬件基线为野火 STM32F407 霸天虎 V2 + OV5640 + 野火 4.3 寸 ILI9806G。
+当前已建立可直接使用 Keil MDK 打开和编译的 Phase 2 工程，硬件基线为野火 STM32F407 霸天虎 V2 + OV5640 + LAN8720 + 野火 4.3 寸 ILI9806G。工程继续使用 STM32 标准外设库，不依赖 HAL。
 
-Keil 工程：`firmware/Project/MDK-ARM/RVM_F407_Phase1.uvprojx`
+Keil 工程：`firmware/Project/MDK-ARM/RVM_F407_Phase2.uvprojx`
+
+中间件版本：FreeRTOS 9.0.0、lwIP 2.1.2、LVGL 8.3.11。当前本机 Keil ARMCC 5.06 update 6 全量重编译结果为 `0 Error(s), 0 Warning(s)`。
 
 ## 仓库结构
 
 ```text
 docs/           架构、决策、测试与阶段计划
 firmware/       STM32F407 设备端
+hardware/       自研硬件、摄像头转接板与打样指南
 protocol/       设备与服务器的线上协议规范
 server/         FastAPI/asyncio 服务器（后续 Phase）
 web/            Web 管理端（后续 Phase）

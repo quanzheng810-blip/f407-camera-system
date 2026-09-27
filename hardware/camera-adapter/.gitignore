@@ -1,0 +1,5 @@
+# Keep only the current PCB release in Git; older local files remain on disk.
+/ProPrj_*.epro2
+/pcb/tools/
+/pcb/routed/*
+!/pcb/routed/assembly-fixed-v2/

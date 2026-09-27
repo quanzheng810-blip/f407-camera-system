@@ -20,13 +20,13 @@ Components/     Common：日志、指标、时间基准、Buffer Pool
 Platform/       CMSIS、STM32F4 StdPeriph 与启动文件
 Project/        Keil 工程文件
 Config/         功能和产品参数
-Middleware/     后续 FreeRTOS、lwIP、JPEG 等第三方代码
+Middleware/     FreeRTOS、lwIP、LVGL 等第三方代码
 Tests/          Host 与 Target 测试
 ```
 
 ## Keil 工程
 
-- 打开 `Project/MDK-ARM/RVM_F407_Phase1.uvprojx`。
+- 打开 `Project/MDK-ARM/RVM_F407_Phase2.uvprojx`。
 - 目标器件：STM32F407ZGTx。
 - 编译器：ARM Compiler 5.06 update 6。
 - 定义：`USE_STDPERIPH_DRIVER`、`STM32F40_41xxx`。
@@ -42,4 +42,4 @@ Tests/          Host 与 Target 测试
 - 中断文件不得修改 App 全局变量，只调用明确的 `On*Irq` 入口。
 - 图像内存最终由固定 Buffer Pool 管理，不在帧路径中使用频繁 `malloc/free`。
 
-当前 Phase 1 为保持野火例程已验证的硬件行为，底层仍采用 DCMI DMA 直接写 LCD FSMC 数据寄存器；Buffer Pool、FreeRTOS 和网络链路在后续 Phase 接入。
+当前 Phase 2 已接入 FreeRTOS、lwIP、LAN8720 标准库 Ethernet BSP 和 LVGL。相机仍采用 DCMI DMA 直接写 LCD FSMC 数据寄存器；下一阶段再通过固定 Buffer Pool 解耦显示和网络发送。

@@ -2,6 +2,8 @@
 #define RVM_PRODUCT_CONFIG_H
 
 #define RVM_PRODUCT_NAME                    "RVM F407 Camera"
+#define RVM_DISPLAY_WIDTH                   800U
+#define RVM_DISPLAY_HEIGHT                  480U
 #define RVM_CAMERA_PREVIEW_WIDTH            320U
 #define RVM_CAMERA_PREVIEW_HEIGHT           240U
 #define RVM_CAMERA_PREVIEW_LCD_X            270U

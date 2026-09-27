@@ -1,6 +1,5 @@
 #include "app_main.h"
 
-#include "board_init.h"
 #include "camera_service.h"
 #include "display_service.h"
 #include "feature_config.h"
@@ -24,7 +23,6 @@ void RVM_App_Init(void)
     RVM_CameraServiceStatus camera_status;
     RVM_CameraStats camera_stats;
 
-    (void)RVM_Board_Init();
     RVM_SystemService_Init();
     RVM_DisplayService_Init(RVM_LCD_SCAN_MODE);
     RVM_LOG_INFO("System", "%s boot", RVM_PRODUCT_NAME);

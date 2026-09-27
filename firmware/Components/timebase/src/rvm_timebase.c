@@ -1,5 +1,8 @@
 #include "rvm_timebase.h"
 
+#include "FreeRTOS.h"
+#include "task.h"
+
 static volatile uint32_t s_milliseconds;
 
 void RVM_Timebase_OnTickIrq(void)
@@ -9,6 +12,11 @@ void RVM_Timebase_OnTickIrq(void)
 
 uint32_t RVM_Timebase_GetMilliseconds(void)
 {
+    if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED)
+    {
+        return (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
+    }
+
     return s_milliseconds;
 }
 

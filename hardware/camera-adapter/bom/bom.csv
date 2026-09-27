@@ -1,0 +1,8 @@
+reference,quantity_per_board,purchase_part,value,package,assembly_side,design_part,notes
+J1,1,2x10 straight male header,2.54mm pitch and row spacing,THT 20-pin,Bottom,LAIL-PZ2.54-10PX2-L,Confirm mating pin length
+J2,1,2x9 straight female header,2.54mm pitch and row spacing,THT 18-pin; about 8.5mm plastic height,Top,LAIL-PM2.54-9PX2-L,Confirm dimensions before buying
+U1,1,ST LDL1117S33R,3.3V fixed LDO,SOT-223,Top,LD1117S33TR,Intentional pin-compatible assembly substitute for ceramic capacitors; design attribute remains original
+C1,1,1206 X7R ceramic capacitor,10uF 16V +/-10%,1206,Top,CL31B106KPHNNNE 10uF 10V,16V procurement replacement
+C2,1,1206 X7R ceramic capacitor,10uF 16V +/-10%,1206,Top,CL31B106KPHNNNE 10uF 10V,Use with LDL1117S33R
+C3,1,0805 X7R ceramic capacitor,100nF 50V +/-10%,0805,Top,CC0805KRX7R9BB104,
+R1,1,1206 resistor,0 ohm,1206,Top,1206W4F0000T5E,PCLK series link
