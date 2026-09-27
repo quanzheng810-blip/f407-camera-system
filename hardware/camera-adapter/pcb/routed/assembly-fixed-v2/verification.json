@@ -1,0 +1,30 @@
+{
+  "clearance_errors": [],
+  "disconnected_nets": [],
+  "minimum_clearance_mil": 8.700799999999958,
+  "hole_clearance_errors": [],
+  "minimum_hole_clearance_mil": 26.65027157229363,
+  "board_edge_errors": [],
+  "minimum_board_edge_clearance_mil": 12.0,
+  "C3_body_gaps_mm": {
+    "C1": 10.305,
+    "C2": 3.287,
+    "J2": 2.418,
+    "R1": 15.529,
+    "U1": 1.999
+  },
+  "C3_J2_solder_pad_to_body_gap_mm": 1.713,
+  "C2_body_gaps_mm": {
+    "C1": 9.576,
+    "C3": 3.287,
+    "J2": 2.872,
+    "R1": 9.042,
+    "U1": 1.284
+  },
+  "silk_label_pad_gaps_mm": {
+    "C2": 0.358,
+    "C3": 0.535
+  },
+  "preserved": "All signal traces, +5V traces, board outline, J1/J2, components other than C2/C3, netlist and schematic unchanged",
+  "native_DRC": "Requires recheck in EasyEDA after import"
+}

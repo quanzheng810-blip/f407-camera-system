@@ -26,6 +26,7 @@ Keil 工程：`firmware/Project/MDK-ARM/RVM_F407_Phase2.uvprojx`
 ```text
 docs/           架构、决策、测试与阶段计划
 firmware/       STM32F407 设备端
+hardware/       自研硬件、摄像头转接板与打样指南
 protocol/       设备与服务器的线上协议规范
 server/         FastAPI/asyncio 服务器（后续 Phase）
 web/            Web 管理端（后续 Phase）
