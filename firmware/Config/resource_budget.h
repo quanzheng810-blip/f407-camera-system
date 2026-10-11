@@ -16,6 +16,7 @@
 #define RVM_FRAME_SLOT_SIZE_BYTES            (RVM_FRAME_MAX_WIDTH * \
                                                RVM_FRAME_MAX_HEIGHT * \
                                                RVM_RGB565_BYTES_PER_PIXEL)
+#define RVM_JPEG_CAPTURE_CAPACITY_BYTES      RVM_FRAME_SLOT_SIZE_BYTES
 #define RVM_FRAME_BUFFER_BASE                0x6C020000UL
 #define RVM_MAX_FRAME_BUFFERS                2U
 #define RVM_FRAME_BUFFER_0_BASE              RVM_FRAME_BUFFER_BASE

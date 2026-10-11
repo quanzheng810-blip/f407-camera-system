@@ -33,6 +33,7 @@ private slots:
     void toggleConnection();
     void sendData();
     void requestSnapshot();
+    void toggleStream();
     void sendTestFrame();
     void saveImage();
     void clearImage();
@@ -64,6 +65,7 @@ private:
     QPushButton *m_clearImageButton;
     QPushButton *m_testFrameButton;
     QPushButton *m_snapshotButton;
+    QPushButton *m_streamButton;
     QPlainTextEdit *m_receiveLog;
     QCheckBox *m_receiveHexCheck;
     QCheckBox *m_timestampCheck;
@@ -77,7 +79,11 @@ private:
     qint64 m_transmittedBytes = 0;
     quint64 m_frameCount = 0;
     QElapsedTimer m_snapshotTimer;
+    QElapsedTimer m_streamFpsTimer;
     bool m_waitingForSnapshot = false;
+    bool m_streaming = false;
+    int m_streamFramesInWindow = 0;
+    double m_streamFps = 0.0;
 };
 
 #endif // MAINWINDOW_H

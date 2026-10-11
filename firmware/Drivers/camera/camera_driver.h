@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "video_frame.h"
+
 typedef enum
 {
     RVM_CAMERA_DRIVER_OK = 0,
@@ -20,6 +22,7 @@ typedef struct
     uint16_t lcd_x;
     uint16_t lcd_y;
     uint8_t lcd_scan_mode;
+    VideoFormat format;
     bool auto_focus;
 } RVM_CameraDriverConfig;
 
@@ -31,6 +34,7 @@ RVM_CameraDriverStatus RVM_CameraDriver_Stop(void);
 RVM_CameraDriverStatus RVM_CameraDriver_CaptureFrame(uint8_t *destination,
                                                     uint32_t byte_count);
 bool RVM_CameraDriver_IsFrameComplete(void);
+uint32_t RVM_CameraDriver_GetCapturedBytes(void);
 bool RVM_CameraDriver_HasCaptureError(void);
 RVM_CameraDriverStatus RVM_CameraDriver_ToggleFocus(void);
 bool RVM_CameraDriver_IsRunning(void);

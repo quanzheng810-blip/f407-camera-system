@@ -15,6 +15,16 @@
 #define RVM_SNAPSHOT_TIMEOUT_MS  2000UL
 #define RVM_COMMAND_LENGTH       16U
 
+#if RVM_SERIAL_IMAGE_USE_JPEG
+#define RVM_SERIAL_ACTIVE_FORMAT    VIDEO_FORMAT_JPEG
+#define RVM_SERIAL_PROTOCOL_FORMAT  RVM_SERIAL_FORMAT_JPEG
+#define RVM_SERIAL_FORMAT_NAME      "JPEG"
+#else
+#define RVM_SERIAL_ACTIVE_FORMAT    VIDEO_FORMAT_RGB565
+#define RVM_SERIAL_PROTOCOL_FORMAT  RVM_SERIAL_FORMAT_RGB565_LE
+#define RVM_SERIAL_FORMAT_NAME      "RGB565"
+#endif
+
 typedef enum
 {
     RVM_SERIAL_IMAGE_IDLE = 0,
@@ -33,6 +43,7 @@ static uint32_t s_capture_started_ms;
 static uint32_t s_payload_offset;
 static uint16_t s_active_chunk;
 static uint32_t s_frame_id;
+static bool s_stream_enabled;
 
 static void RVM_SerialImage_Release(void)
 {
@@ -52,48 +63,57 @@ static void RVM_SerialImage_Fail(const char *reason)
     {
         Debug_USART_EndBinary();
     }
+    s_stream_enabled = false;
     RVM_SerialImage_Release();
     RVM_LOG_ERROR("SerialImage", "%s", reason);
 }
 
-static void RVM_SerialImage_StartSnapshot(void)
+static bool RVM_SerialImage_StartSnapshot(void)
 {
     uint32_t payload_length = (uint32_t)RVM_SERIAL_IMAGE_WIDTH *
                               (uint32_t)RVM_SERIAL_IMAGE_HEIGHT *
                               RVM_RGB565_BYTES_PER_PIXEL;
+    uint32_t capture_capacity = payload_length;
+
+#if RVM_SERIAL_IMAGE_USE_JPEG
+    capture_capacity = RVM_JPEG_CAPTURE_CAPACITY_BYTES;
+#endif
 
     if (s_state != RVM_SERIAL_IMAGE_IDLE)
     {
         RVM_LOG_WARN("SerialImage", "busy");
-        return;
+        return false;
     }
 
     if (VideoBuffer_AcquireForCapture(&s_buffer_handle,
                                       &s_buffer_view) != VIDEO_BUFFER_OK)
     {
         RVM_LOG_WARN("SerialImage", "busy");
-        return;
+        return false;
     }
-    if (payload_length > s_buffer_view.capacity)
+    if (capture_capacity > s_buffer_view.capacity)
     {
         RVM_SerialImage_Release();
         RVM_LOG_ERROR("SerialImage", "frame exceeds buffer capacity");
-        return;
+        return false;
     }
 
     if (RVM_CameraService_CaptureFrame(s_buffer_view.data,
-                                       payload_length) !=
+                                       capture_capacity) !=
         RVM_CAMERA_SERVICE_OK)
     {
         RVM_SerialImage_Release();
         RVM_LOG_ERROR("SerialImage", "camera capture start failed");
-        return;
+        return false;
     }
 
     s_capture_started_ms = RVM_Timebase_GetMilliseconds();
     s_state = RVM_SERIAL_IMAGE_CAPTURING;
-    RVM_LOG_INFO("SerialImage", "capturing %ux%u RGB565",
-                 RVM_SERIAL_IMAGE_WIDTH, RVM_SERIAL_IMAGE_HEIGHT);
+    RVM_LOG_INFO("SerialImage", "capturing %ux%u %s",
+                 RVM_SERIAL_IMAGE_WIDTH,
+                 RVM_SERIAL_IMAGE_HEIGHT,
+                 RVM_SERIAL_FORMAT_NAME);
+    return true;
 }
 
 static void RVM_SerialImage_HandleCommand(void)
@@ -101,7 +121,35 @@ static void RVM_SerialImage_HandleCommand(void)
     s_command[s_command_length] = '\0';
     if (strcmp(s_command, "SNAP") == 0)
     {
-        RVM_SerialImage_StartSnapshot();
+        if (s_stream_enabled)
+        {
+            RVM_LOG_WARN("SerialImage", "busy: stream active");
+        }
+        else
+        {
+            (void)RVM_SerialImage_StartSnapshot();
+        }
+    }
+    else if (strcmp(s_command, "STREAM ON") == 0)
+    {
+        if (!s_stream_enabled)
+        {
+            s_stream_enabled = true;
+            RVM_LOG_INFO("SerialImage", "stream enabled");
+            if ((s_state == RVM_SERIAL_IMAGE_IDLE) &&
+                (!RVM_SerialImage_StartSnapshot()))
+            {
+                s_stream_enabled = false;
+            }
+        }
+    }
+    else if (strcmp(s_command, "STREAM OFF") == 0)
+    {
+        if (s_stream_enabled)
+        {
+            s_stream_enabled = false;
+            RVM_LOG_INFO("SerialImage", "stream stopping");
+        }
     }
     else if (s_command_length != 0U)
     {
@@ -135,6 +183,7 @@ static void RVM_SerialImage_ProcessRx(void)
     }
 }
 
+#if !RVM_SERIAL_IMAGE_USE_JPEG
 static void RVM_SerialImage_SwapRgb565Bytes(uint8_t *data,
                                             uint32_t length)
 {
@@ -153,6 +202,53 @@ static void RVM_SerialImage_SwapRgb565Bytes(uint8_t *data,
     (void)length;
 #endif
 }
+#endif
+
+#if RVM_SERIAL_IMAGE_USE_JPEG
+static bool RVM_SerialImage_NormalizeJpeg(uint8_t *data,
+                                          uint32_t captured_length,
+                                          uint32_t *payload_length)
+{
+    uint32_t start;
+    uint32_t end;
+
+    if ((data == 0) || (payload_length == 0) || (captured_length < 4U))
+    {
+        return false;
+    }
+
+    start = 0U;
+    while ((start + 1U) < captured_length)
+    {
+        if ((data[start] == 0xFFU) && (data[start + 1U] == 0xD8U))
+        {
+            break;
+        }
+        ++start;
+    }
+    if ((start + 1U) >= captured_length)
+    {
+        return false;
+    }
+
+    end = start + 2U;
+    while ((end + 1U) < captured_length)
+    {
+        if ((data[end] == 0xFFU) && (data[end + 1U] == 0xD9U))
+        {
+            end += 2U;
+            if (start != 0U)
+            {
+                memmove(data, data + start, end - start);
+            }
+            *payload_length = end - start;
+            return true;
+        }
+        ++end;
+    }
+    return false;
+}
+#endif
 
 static bool RVM_SerialImage_StartPayloadChunk(void)
 {
@@ -178,17 +274,37 @@ static void RVM_SerialImage_PrepareFrame(void)
 {
     VideoFrameMeta meta;
     uint32_t crc;
+    uint32_t captured_length;
+    uint32_t payload_length;
 
     meta.frame_id = ++s_frame_id;
     meta.timestamp_ms = RVM_Timebase_GetMilliseconds();
     meta.width = RVM_SERIAL_IMAGE_WIDTH;
     meta.height = RVM_SERIAL_IMAGE_HEIGHT;
-    meta.format = VIDEO_FORMAT_RGB565;
-    meta.payload_length = (size_t)meta.width * (size_t)meta.height *
-                          RVM_RGB565_BYTES_PER_PIXEL;
+    meta.format = RVM_SERIAL_ACTIVE_FORMAT;
 
-    RVM_SerialImage_SwapRgb565Bytes(s_buffer_view.data,
-                                    (uint32_t)meta.payload_length);
+#if RVM_SERIAL_IMAGE_USE_JPEG
+    captured_length = RVM_CameraService_GetCapturedBytes();
+    if (!RVM_SerialImage_NormalizeJpeg(s_buffer_view.data,
+                                       captured_length,
+                                       &payload_length))
+    {
+        RVM_SerialImage_Fail("invalid JPEG markers");
+        return;
+    }
+    meta.payload_length = payload_length;
+#else
+    captured_length = RVM_CameraService_GetCapturedBytes();
+    payload_length = (uint32_t)meta.width * (uint32_t)meta.height *
+                     RVM_RGB565_BYTES_PER_PIXEL;
+    if (captured_length < payload_length)
+    {
+        RVM_SerialImage_Fail("incomplete RGB565 frame");
+        return;
+    }
+    meta.payload_length = payload_length;
+    RVM_SerialImage_SwapRgb565Bytes(s_buffer_view.data, payload_length);
+#endif
     if (VideoBuffer_MarkReady(s_buffer_handle, &meta) != VIDEO_BUFFER_OK ||
         VideoBuffer_Transition(s_buffer_handle, VIDEO_BUFFER_READY,
                                VIDEO_BUFFER_SENDING) != VIDEO_BUFFER_OK)
@@ -201,7 +317,7 @@ static void RVM_SerialImage_PrepareFrame(void)
     crc = RVM_SerialProtocol_Crc32(s_buffer_view.data,
                                    s_buffer_view.meta.payload_length);
     RVM_SerialProtocol_BuildHeader(s_header,
-                                   RVM_SERIAL_FORMAT_RGB565_LE,
+                                   RVM_SERIAL_PROTOCOL_FORMAT,
                                    meta.width,
                                    meta.height,
                                    (uint32_t)meta.payload_length,
@@ -228,9 +344,11 @@ void RVM_SerialImageService_Init(void)
 {
     s_state = RVM_SERIAL_IMAGE_IDLE;
     s_command_length = 0U;
+    s_stream_enabled = false;
     s_buffer_handle.index = 0xFFFFU;
     s_buffer_handle.generation = 0U;
-    RVM_LOG_INFO("SerialImage", "ready, SNAP at %lu baud",
+    RVM_LOG_INFO("SerialImage", "ready, SNAP/STREAM %s at %lu baud",
+                 RVM_SERIAL_FORMAT_NAME,
                  (uint32_t)DEBUG_USART_BAUDRATE);
 }
 
@@ -281,13 +399,20 @@ void RVM_SerialImageService_Process(void)
         s_payload_offset += s_active_chunk;
         if (s_payload_offset >= s_buffer_view.meta.payload_length)
         {
+            uint32_t payload_length = s_buffer_view.meta.payload_length;
+
             Debug_USART_EndBinary();
             RVM_SerialImage_Release();
-            RVM_LOG_INFO("SerialImage", "frame sent: %ux%u, %lu bytes",
+            RVM_LOG_INFO("SerialImage", "frame sent: %ux%u %s, %lu bytes",
                          RVM_SERIAL_IMAGE_WIDTH,
                          RVM_SERIAL_IMAGE_HEIGHT,
-                         (uint32_t)(RVM_SERIAL_IMAGE_WIDTH *
-                                    RVM_SERIAL_IMAGE_HEIGHT * 2UL));
+                         RVM_SERIAL_FORMAT_NAME,
+                         payload_length);
+            if (s_stream_enabled && (!RVM_SerialImage_StartSnapshot()))
+            {
+                s_stream_enabled = false;
+                RVM_LOG_ERROR("SerialImage", "stream restart failed");
+            }
         }
         else if (!RVM_SerialImage_StartPayloadChunk())
         {

@@ -9,6 +9,8 @@
 #define RVM_SERIAL_IMAGE_WIDTH              320U
 #define RVM_SERIAL_IMAGE_HEIGHT             240U
 #define RVM_SERIAL_IMAGE_BAUD_RATE          1500000UL
+#define RVM_SERIAL_IMAGE_USE_JPEG            1U
+#define RVM_CAMERA_JPEG_QUALITY              4U
 #define RVM_SERIAL_LOG_BAUD_RATE            115200UL
 #define RVM_SERIAL_RX_RING_SIZE             128U
 #define RVM_SERIAL_DEFERRED_LOG_SIZE         1024U
@@ -22,6 +24,14 @@
 
 #if (RVM_SERIAL_IMAGE_WIDTH > 320U) || (RVM_SERIAL_IMAGE_HEIGHT > 240U)
 #error "Serial image dimensions exceed the reserved frame slot"
+#endif
+
+#if (RVM_SERIAL_IMAGE_USE_JPEG > 1U)
+#error "RVM_SERIAL_IMAGE_USE_JPEG must be 0 or 1"
+#endif
+
+#if (RVM_CAMERA_JPEG_QUALITY > 63U)
+#error "OV5640 JPEG quantization scale must be in the range 0..63"
 #endif
 
 #if (((RVM_SERIAL_IMAGE_WIDTH * RVM_SERIAL_IMAGE_HEIGHT * 2U) % 4U) != 0U)

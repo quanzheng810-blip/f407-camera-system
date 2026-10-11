@@ -62,6 +62,7 @@ private slots:
     void decodesFragmentedJpegFrame();
     void separatesConsoleDataFromFrame();
     void rejectsCorruptedFrame();
+    void separatesLogsAroundFragmentedJpegFrame();
     void decodesFragmentedRgb565Frame();
     void separatesLogsAroundRgb565Frame();
 };
@@ -122,6 +123,37 @@ void FrameStreamParserTest::rejectsCorruptedFrame()
 
     QCOMPARE(frameSpy.count(), 0);
     QCOMPARE(errorSpy.count(), 1);
+}
+
+void FrameStreamParserTest::separatesLogsAroundFragmentedJpegFrame()
+{
+    FrameStreamParser parser;
+    QSignalSpy consoleSpy(&parser, &FrameStreamParser::consoleDataAvailable);
+    QSignalSpy frameSpy(&parser, &FrameStreamParser::frameAvailable);
+    QSignalSpy errorSpy(&parser, &FrameStreamParser::frameError);
+    QImage source(320, 240, QImage::Format_RGB32);
+    const QByteArray before("[INFO] capturing JPEG\r\n");
+    const QByteArray after("[INFO] frame sent\r\n");
+    QByteArray stream;
+
+    source.fill(QColor(40, 100, 180));
+    stream = before + FrameStreamParser::encodeJpegFrame(source, 85)
+        + after + "xxxx";
+    QVERIFY(stream.size() > 18);
+
+    for (qsizetype offset = 0; offset < stream.size(); offset += 113) {
+        parser.feedData(stream.mid(offset, 113));
+    }
+
+    QCOMPARE(errorSpy.count(), 0);
+    QCOMPARE(frameSpy.count(), 1);
+    QByteArray console;
+    for (const QList<QVariant> &arguments : consoleSpy) {
+        console.append(arguments.at(0).toByteArray());
+    }
+    QVERIFY(console.contains(before));
+    QVERIFY(console.contains(after));
+    QVERIFY(frameSpy.at(0).at(1).toString().contains(QStringLiteral("JPEG")));
 }
 
 void FrameStreamParserTest::decodesFragmentedRgb565Frame()

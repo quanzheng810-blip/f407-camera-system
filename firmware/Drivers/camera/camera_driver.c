@@ -4,11 +4,48 @@
 #include "dcmi_framebuffer.h"
 #include "feature_config.h"
 #include "ov5640_AF.h"
+#include "product_config.h"
 
 static bool s_initialized;
 static bool s_running;
 static bool s_focus_running;
 static volatile uint32_t s_frame_count;
+static VideoFormat s_format = VIDEO_FORMAT_RGB565;
+
+static bool RVM_CameraDriver_ConfigureJpeg(void)
+{
+    uint8_t value;
+
+    if ((OV5640_WriteReg(0x4300U, 0x30U) != 0U) ||
+        (OV5640_WriteReg(0x501FU, 0x00U) != 0U) ||
+        (OV5640_WriteReg(0x4713U, 0x03U) != 0U) ||
+        (OV5640_WriteReg(0x4407U, RVM_CAMERA_JPEG_QUALITY) != 0U))
+    {
+        return false;
+    }
+
+    value = OV5640_ReadReg(0x3821U);
+    if ((value == 0xFFU) ||
+        (OV5640_WriteReg(0x3821U, (uint8_t)(value | 0x20U)) != 0U))
+    {
+        return false;
+    }
+
+    value = OV5640_ReadReg(0x3002U);
+    if ((value == 0xFFU) ||
+        (OV5640_WriteReg(0x3002U, (uint8_t)(value & ~0x1CU)) != 0U))
+    {
+        return false;
+    }
+
+    value = OV5640_ReadReg(0x3006U);
+    if ((value == 0xFFU) ||
+        (OV5640_WriteReg(0x3006U, (uint8_t)(value | 0x28U)) != 0U))
+    {
+        return false;
+    }
+    return true;
+}
 
 RVM_CameraDriverStatus RVM_CameraDriver_Init(uint16_t *product_id)
 {
@@ -80,6 +117,18 @@ RVM_CameraDriverStatus RVM_CameraDriver_Configure(
 
     OV5640_USER_Config();
 
+    if ((config->format != VIDEO_FORMAT_RGB565) &&
+        (config->format != VIDEO_FORMAT_JPEG))
+    {
+        return RVM_CAMERA_DRIVER_INVALID_ARGUMENT;
+    }
+    if ((config->format == VIDEO_FORMAT_JPEG) &&
+        !RVM_CameraDriver_ConfigureJpeg())
+    {
+        return RVM_CAMERA_DRIVER_ERROR;
+    }
+    s_format = config->format;
+
     if (config->auto_focus)
     {
         (void)OV5640_FOCUS_AD5820_Constant_Focus();
@@ -133,7 +182,9 @@ RVM_CameraDriverStatus RVM_CameraDriver_CaptureFrame(uint8_t *destination,
         return RVM_CAMERA_DRIVER_INVALID_ARGUMENT;
     }
 
-    if (!RVM_DcmiFrame_Start(destination, byte_count))
+    if (!RVM_DcmiFrame_Start(destination,
+                             byte_count,
+                             s_format == VIDEO_FORMAT_JPEG))
     {
         return RVM_CAMERA_DRIVER_ERROR;
     }
@@ -150,6 +201,11 @@ bool RVM_CameraDriver_IsFrameComplete(void)
         return true;
     }
     return false;
+}
+
+uint32_t RVM_CameraDriver_GetCapturedBytes(void)
+{
+    return RVM_DcmiFrame_GetCapturedBytes();
 }
 
 bool RVM_CameraDriver_HasCaptureError(void)

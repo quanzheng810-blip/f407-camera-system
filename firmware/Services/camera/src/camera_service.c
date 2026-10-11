@@ -49,6 +49,7 @@ RVM_CameraServiceStatus RVM_CameraService_Init(
     driver_config.lcd_x = config->lcd_x;
     driver_config.lcd_y = config->lcd_y;
     driver_config.lcd_scan_mode = config->lcd_scan_mode;
+    driver_config.format = config->format;
     driver_config.auto_focus = config->auto_focus;
 
     driver_status = RVM_CameraDriver_Configure(&driver_config);
@@ -153,6 +154,11 @@ bool RVM_CameraService_IsFrameReady(void)
     return false;
 }
 
+uint32_t RVM_CameraService_GetCapturedBytes(void)
+{
+    return RVM_CameraDriver_GetCapturedBytes();
+}
+
 RVM_CameraServiceStatus RVM_CameraService_AbortCapture(void)
 {
     RVM_CameraDriverStatus status;
@@ -192,6 +198,7 @@ RVM_CameraServiceStatus RVM_CameraService_Restart(
     driver_config.lcd_x = config->lcd_x;
     driver_config.lcd_y = config->lcd_y;
     driver_config.lcd_scan_mode = config->lcd_scan_mode;
+    driver_config.format = config->format;
     driver_config.auto_focus = config->auto_focus;
     status = RVM_CameraDriver_Configure(&driver_config);
     if (status != RVM_CAMERA_DRIVER_OK)

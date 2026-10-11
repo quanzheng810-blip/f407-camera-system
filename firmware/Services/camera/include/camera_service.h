@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "video_frame.h"
+
 typedef enum
 {
     RVM_CAMERA_STATE_UNINITIALIZED = 0,
@@ -29,6 +31,7 @@ typedef struct
     uint16_t lcd_x;
     uint16_t lcd_y;
     uint8_t lcd_scan_mode;
+    VideoFormat format;
     bool auto_focus;
 } RVM_CameraConfig;
 
@@ -48,6 +51,7 @@ RVM_CameraServiceStatus RVM_CameraService_Stop(void);
 RVM_CameraServiceStatus RVM_CameraService_CaptureFrame(uint8_t *destination,
                                                        uint32_t byte_count);
 bool RVM_CameraService_IsFrameReady(void);
+uint32_t RVM_CameraService_GetCapturedBytes(void);
 RVM_CameraServiceStatus RVM_CameraService_AbortCapture(void);
 RVM_CameraServiceStatus RVM_CameraService_Restart(
     const RVM_CameraConfig *config);

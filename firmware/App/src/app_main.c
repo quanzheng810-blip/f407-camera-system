@@ -20,6 +20,11 @@ static const RVM_CameraConfig s_camera_config = {
     RVM_CAMERA_PREVIEW_LCD_X,
     RVM_CAMERA_PREVIEW_LCD_Y,
     RVM_LCD_SCAN_MODE,
+#if RVM_FEATURE_SERIAL_IMAGE && RVM_SERIAL_IMAGE_USE_JPEG
+    VIDEO_FORMAT_JPEG,
+#else
+    VIDEO_FORMAT_RGB565,
+#endif
     RVM_FEATURE_AUTO_FOCUS != 0
 };
 
@@ -78,9 +83,11 @@ void RVM_App_Init(void)
                  s_camera_config.height);
 #else
     RVM_SystemService_SetState(RVM_SYSTEM_STATE_READY);
-    RVM_LOG_INFO("System", "headless snapshot mode %ux%u RGB565",
+    RVM_LOG_INFO("System", "headless snapshot mode %ux%u %s",
                  s_camera_config.width,
-                 s_camera_config.height);
+                 s_camera_config.height,
+                 s_camera_config.format == VIDEO_FORMAT_JPEG
+                     ? "JPEG" : "RGB565");
 #endif
 }
 

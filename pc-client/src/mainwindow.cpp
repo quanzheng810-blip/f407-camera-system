@@ -48,6 +48,8 @@ MainWindow::MainWindow(QWidget *parent)
             this, &MainWindow::sendTestFrame);
     connect(m_snapshotButton, &QPushButton::clicked,
             this, &MainWindow::requestSnapshot);
+    connect(m_streamButton, &QPushButton::clicked,
+            this, &MainWindow::toggleStream);
     connect(m_saveImageButton, &QPushButton::clicked,
             this, &MainWindow::saveImage);
     connect(m_clearImageButton, &QPushButton::clicked,
@@ -124,6 +126,7 @@ void MainWindow::buildUi()
 
     m_imageInfoLabel = new QLabel(QStringLiteral("等待图像帧"), imageBox);
     m_snapshotButton = new QPushButton(QStringLiteral("拍摄一帧"), imageBox);
+    m_streamButton = new QPushButton(QStringLiteral("开始预览"), imageBox);
     m_testFrameButton = new QPushButton(QStringLiteral("发送测试帧"), imageBox);
     m_saveImageButton = new QPushButton(QStringLiteral("保存图片"), imageBox);
     m_clearImageButton = new QPushButton(QStringLiteral("清除图片"), imageBox);
@@ -133,11 +136,13 @@ void MainWindow::buildUi()
     imageToolsLayout->addWidget(m_imageInfoLabel);
     imageToolsLayout->addStretch();
     imageToolsLayout->addWidget(m_snapshotButton);
+    imageToolsLayout->addWidget(m_streamButton);
     imageToolsLayout->addWidget(m_testFrameButton);
     imageToolsLayout->addWidget(m_saveImageButton);
     imageToolsLayout->addWidget(m_clearImageButton);
 
-    m_imageLabel = new QLabel(QStringLiteral("等待串口图像\n\n支持 JPEG 和 RGB565"), imageBox);
+    m_imageLabel = new QLabel(QStringLiteral(
+        "等待串口图像\n\n支持 JPEG 和 RGB565\n当前固件：320 × 240 JPEG"), imageBox);
     m_imageLabel->setAlignment(Qt::AlignCenter);
     m_imageLabel->setMinimumSize(520, 360);
     m_imageLabel->setFrameShape(QFrame::StyledPanel);
@@ -304,7 +309,7 @@ void MainWindow::sendData()
 
 void MainWindow::requestSnapshot()
 {
-    if (!m_serialController->isOpen() || m_waitingForSnapshot) {
+    if (!m_serialController->isOpen() || m_waitingForSnapshot || m_streaming) {
         return;
     }
 
@@ -313,8 +318,36 @@ void MainWindow::requestSnapshot()
     m_waitingForSnapshot = true;
     m_snapshotTimer.restart();
     m_snapshotButton->setEnabled(false);
+    m_streamButton->setEnabled(false);
     m_imageInfoLabel->setText(QStringLiteral("正在等待图像…"));
     statusBar()->showMessage(QStringLiteral("已发送 SNAP，正在等待图像"));
+}
+
+void MainWindow::toggleStream()
+{
+    if (!m_serialController->isOpen() || m_waitingForSnapshot) {
+        return;
+    }
+
+    if (!m_streaming) {
+        m_serialController->writeData(QByteArrayLiteral("STREAM ON\n"));
+        appendLog(QStringLiteral("TX"), QStringLiteral("STREAM ON\\n"));
+        m_streaming = true;
+        m_streamFramesInWindow = 0;
+        m_streamFps = 0.0;
+        m_streamFpsTimer.restart();
+        m_streamButton->setText(QStringLiteral("停止预览"));
+        m_snapshotButton->setEnabled(false);
+        m_imageInfoLabel->setText(QStringLiteral("正在启动连续预览…"));
+        statusBar()->showMessage(QStringLiteral("已发送 STREAM ON，正在启动连续预览"));
+    } else {
+        m_serialController->writeData(QByteArrayLiteral("STREAM OFF\n"));
+        appendLog(QStringLiteral("TX"), QStringLiteral("STREAM OFF\\n"));
+        m_streaming = false;
+        m_streamButton->setText(QStringLiteral("开始预览"));
+        m_snapshotButton->setEnabled(true);
+        statusBar()->showMessage(QStringLiteral("已发送 STREAM OFF，当前帧结束后停止"), 4000);
+    }
 }
 
 void MainWindow::sendTestFrame()
@@ -389,7 +422,8 @@ void MainWindow::clearImage()
 {
     m_lastImage = QImage();
     m_imageLabel->setPixmap(QPixmap());
-    m_imageLabel->setText(QStringLiteral("等待串口图像\n\n支持 JPEG 和 RGB565"));
+    m_imageLabel->setText(QStringLiteral(
+        "等待串口图像\n\n支持 JPEG 和 RGB565\n当前固件：320 × 240 JPEG"));
     m_imageInfoLabel->setText(QStringLiteral("等待图像帧"));
     m_saveImageButton->setEnabled(false);
     m_clearImageButton->setEnabled(false);
@@ -421,18 +455,35 @@ void MainWindow::handleFrame(const QImage &image, const QString &description)
     m_lastImage = image;
     ++m_frameCount;
     updateImageDisplay();
-    const QString timing = elapsedMs >= 0
-        ? QStringLiteral(" | 接收耗时 %1 ms").arg(elapsedMs)
-        : QString();
+    QString timing;
+    if (m_streaming) {
+        ++m_streamFramesInWindow;
+        const qint64 fpsElapsedMs = m_streamFpsTimer.elapsed();
+        if (fpsElapsedMs >= 1000) {
+            m_streamFps = static_cast<double>(m_streamFramesInWindow) * 1000.0 /
+                          static_cast<double>(fpsElapsedMs);
+            m_streamFramesInWindow = 0;
+            m_streamFpsTimer.restart();
+        }
+        timing = m_streamFps > 0.0
+            ? QStringLiteral(" | 连续预览 %1 FPS").arg(m_streamFps, 0, 'f', 1)
+            : QStringLiteral(" | 连续预览，正在计算 FPS");
+    } else if (elapsedMs >= 0) {
+        timing = QStringLiteral(" | 接收耗时 %1 ms").arg(elapsedMs);
+    }
     m_imageInfoLabel->setText(QStringLiteral("帧 #%1 | %2%3")
                                   .arg(m_frameCount)
                                   .arg(description, timing));
     m_waitingForSnapshot = false;
-    m_snapshotButton->setEnabled(m_serialController->isOpen());
+    m_snapshotButton->setEnabled(m_serialController->isOpen() && !m_streaming);
+    m_streamButton->setEnabled(m_serialController->isOpen());
     m_saveImageButton->setEnabled(true);
     m_clearImageButton->setEnabled(true);
     statusBar()->showMessage(
-        elapsedMs >= 0
+        m_streaming
+            ? QStringLiteral("连续预览：帧 #%1，%2 FPS")
+                  .arg(m_frameCount).arg(m_streamFps, 0, 'f', 1)
+            : elapsedMs >= 0
             ? QStringLiteral("已接收图像帧 #%1，耗时 %2 ms")
                   .arg(m_frameCount).arg(elapsedMs)
             : QStringLiteral("已接收图像帧 #%1").arg(m_frameCount),
@@ -449,7 +500,8 @@ void MainWindow::handleFrameError(const QString &message)
         statusBar()->showMessage(message, 5000);
     }
     m_waitingForSnapshot = false;
-    m_snapshotButton->setEnabled(m_serialController->isOpen());
+    m_snapshotButton->setEnabled(m_serialController->isOpen() && !m_streaming);
+    m_streamButton->setEnabled(m_serialController->isOpen());
 }
 
 void MainWindow::handlePortOpened(const QString &portName, qint32 baudRate)
@@ -463,6 +515,8 @@ void MainWindow::handlePortClosed()
 {
     m_frameParser->reset();
     m_waitingForSnapshot = false;
+    m_streaming = false;
+    m_streamButton->setText(QStringLiteral("开始预览"));
     updateConnectionUi(false);
     appendLog(QStringLiteral("SYS"), QStringLiteral("串口已断开"));
 }
@@ -484,7 +538,8 @@ void MainWindow::updateConnectionUi(bool connected)
     m_sendHexCheck->setEnabled(connected);
     m_lineEndingCombo->setEnabled(connected);
     m_testFrameButton->setEnabled(connected);
-    m_snapshotButton->setEnabled(connected && !m_waitingForSnapshot);
+    m_snapshotButton->setEnabled(connected && !m_waitingForSnapshot && !m_streaming);
+    m_streamButton->setEnabled(connected && !m_waitingForSnapshot);
     m_connectionState->setText(connected ? QStringLiteral("已连接") : QStringLiteral("未连接"));
     m_connectionState->setStyleSheet(connected
         ? QStringLiteral("color: #067647; font-weight: 600;")
