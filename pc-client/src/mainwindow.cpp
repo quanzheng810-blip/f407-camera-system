@@ -101,7 +101,7 @@ void MainWindow::buildUi()
     for (qint32 baudRate : baudRates) {
         m_baudCombo->addItem(QString::number(baudRate), baudRate);
     }
-    m_baudCombo->setCurrentIndex(m_baudCombo->findData(921600));
+    m_baudCombo->setCurrentIndex(m_baudCombo->findData(1500000));
 
     m_refreshButton = new QPushButton(QStringLiteral("刷新串口"), connectionBox);
     m_connectButton = new QPushButton(QStringLiteral("连接"), connectionBox);
@@ -203,7 +203,7 @@ void MainWindow::buildUi()
     rootLayout->addWidget(sendBox);
 
     setCentralWidget(centralWidget);
-    statusBar()->showMessage(QStringLiteral("默认参数：921600 / 8 数据位 / 无校验 / 1 停止位 / 无流控"));
+    statusBar()->showMessage(QStringLiteral("默认参数：1500000 / 8 数据位 / 无校验 / 1 停止位 / 无流控"));
 }
 
 void MainWindow::refreshPorts()

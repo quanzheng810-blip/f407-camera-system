@@ -6,9 +6,9 @@
 #define RVM_DISPLAY_HEIGHT                  480U
 #define RVM_CAMERA_PREVIEW_WIDTH            320U
 #define RVM_CAMERA_PREVIEW_HEIGHT           240U
-#define RVM_SERIAL_IMAGE_WIDTH              160U
-#define RVM_SERIAL_IMAGE_HEIGHT             120U
-#define RVM_SERIAL_IMAGE_BAUD_RATE          921600UL
+#define RVM_SERIAL_IMAGE_WIDTH              320U
+#define RVM_SERIAL_IMAGE_HEIGHT             240U
+#define RVM_SERIAL_IMAGE_BAUD_RATE          1500000UL
 #define RVM_SERIAL_LOG_BAUD_RATE            115200UL
 #define RVM_SERIAL_RX_RING_SIZE             128U
 #define RVM_SERIAL_DEFERRED_LOG_SIZE         1024U
