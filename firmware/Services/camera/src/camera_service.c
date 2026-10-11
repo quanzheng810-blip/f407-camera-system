@@ -105,6 +105,74 @@ RVM_CameraServiceStatus RVM_CameraService_Stop(void)
     return RVM_CAMERA_SERVICE_OK;
 }
 
+RVM_CameraServiceStatus RVM_CameraService_CaptureFrame(uint8_t *destination,
+                                                       uint32_t byte_count)
+{
+    RVM_CameraDriverStatus status;
+
+    if ((destination == 0) || (byte_count == 0U))
+    {
+        return RVM_CAMERA_SERVICE_INVALID_ARGUMENT;
+    }
+    if (s_state != RVM_CAMERA_STATE_IDLE)
+    {
+        return RVM_CAMERA_SERVICE_INVALID_STATE;
+    }
+
+    status = RVM_CameraDriver_CaptureFrame(destination, byte_count);
+    if (status != RVM_CAMERA_DRIVER_OK)
+    {
+        ++s_capture_errors;
+        return RVM_CameraService_MapDriverStatus(status);
+    }
+
+    s_state = RVM_CAMERA_STATE_CAPTURING;
+    return RVM_CAMERA_SERVICE_OK;
+}
+
+bool RVM_CameraService_IsFrameReady(void)
+{
+    if (s_state != RVM_CAMERA_STATE_CAPTURING)
+    {
+        return false;
+    }
+
+    if (RVM_CameraDriver_HasCaptureError())
+    {
+        (void)RVM_CameraDriver_Stop();
+        s_state = RVM_CAMERA_STATE_ERROR;
+        ++s_capture_errors;
+        return false;
+    }
+
+    if (RVM_CameraDriver_IsFrameComplete())
+    {
+        s_state = RVM_CAMERA_STATE_IDLE;
+        return true;
+    }
+    return false;
+}
+
+RVM_CameraServiceStatus RVM_CameraService_AbortCapture(void)
+{
+    RVM_CameraDriverStatus status;
+
+    if (s_state != RVM_CAMERA_STATE_CAPTURING)
+    {
+        return RVM_CAMERA_SERVICE_INVALID_STATE;
+    }
+
+    status = RVM_CameraDriver_Stop();
+    if (status != RVM_CAMERA_DRIVER_OK)
+    {
+        s_state = RVM_CAMERA_STATE_ERROR;
+        ++s_capture_errors;
+        return RVM_CameraService_MapDriverStatus(status);
+    }
+    s_state = RVM_CAMERA_STATE_IDLE;
+    return RVM_CAMERA_SERVICE_OK;
+}
+
 RVM_CameraServiceStatus RVM_CameraService_Restart(
     const RVM_CameraConfig *config)
 {

@@ -28,6 +28,10 @@ RVM_CameraDriverStatus RVM_CameraDriver_Configure(
     const RVM_CameraDriverConfig *config);
 RVM_CameraDriverStatus RVM_CameraDriver_Start(void);
 RVM_CameraDriverStatus RVM_CameraDriver_Stop(void);
+RVM_CameraDriverStatus RVM_CameraDriver_CaptureFrame(uint8_t *destination,
+                                                    uint32_t byte_count);
+bool RVM_CameraDriver_IsFrameComplete(void);
+bool RVM_CameraDriver_HasCaptureError(void);
 RVM_CameraDriverStatus RVM_CameraDriver_ToggleFocus(void);
 bool RVM_CameraDriver_IsRunning(void);
 uint32_t RVM_CameraDriver_GetFrameCount(void);

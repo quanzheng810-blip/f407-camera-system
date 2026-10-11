@@ -46,6 +46,8 @@ MainWindow::MainWindow(QWidget *parent)
             this, &MainWindow::sendData);
     connect(m_testFrameButton, &QPushButton::clicked,
             this, &MainWindow::sendTestFrame);
+    connect(m_snapshotButton, &QPushButton::clicked,
+            this, &MainWindow::requestSnapshot);
     connect(m_saveImageButton, &QPushButton::clicked,
             this, &MainWindow::saveImage);
     connect(m_clearImageButton, &QPushButton::clicked,
@@ -64,9 +66,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_frameParser, &FrameStreamParser::frameAvailable,
             this, &MainWindow::handleFrame);
     connect(m_frameParser, &FrameStreamParser::frameError,
-            this, [this](const QString &message) {
-        appendLog(QStringLiteral("FRAME"), message);
-    });
+            this, &MainWindow::handleFrameError);
     connect(m_serialController, &SerialPortController::dataWritten,
             this, [this](qint64 byteCount) {
         m_transmittedBytes += byteCount;
@@ -101,7 +101,7 @@ void MainWindow::buildUi()
     for (qint32 baudRate : baudRates) {
         m_baudCombo->addItem(QString::number(baudRate), baudRate);
     }
-    m_baudCombo->setCurrentIndex(m_baudCombo->findData(115200));
+    m_baudCombo->setCurrentIndex(m_baudCombo->findData(921600));
 
     m_refreshButton = new QPushButton(QStringLiteral("刷新串口"), connectionBox);
     m_connectButton = new QPushButton(QStringLiteral("连接"), connectionBox);
@@ -123,6 +123,7 @@ void MainWindow::buildUi()
     auto *imageToolsLayout = new QHBoxLayout();
 
     m_imageInfoLabel = new QLabel(QStringLiteral("等待图像帧"), imageBox);
+    m_snapshotButton = new QPushButton(QStringLiteral("拍摄一帧"), imageBox);
     m_testFrameButton = new QPushButton(QStringLiteral("发送测试帧"), imageBox);
     m_saveImageButton = new QPushButton(QStringLiteral("保存图片"), imageBox);
     m_clearImageButton = new QPushButton(QStringLiteral("清除图片"), imageBox);
@@ -131,6 +132,7 @@ void MainWindow::buildUi()
 
     imageToolsLayout->addWidget(m_imageInfoLabel);
     imageToolsLayout->addStretch();
+    imageToolsLayout->addWidget(m_snapshotButton);
     imageToolsLayout->addWidget(m_testFrameButton);
     imageToolsLayout->addWidget(m_saveImageButton);
     imageToolsLayout->addWidget(m_clearImageButton);
@@ -201,7 +203,7 @@ void MainWindow::buildUi()
     rootLayout->addWidget(sendBox);
 
     setCentralWidget(centralWidget);
-    statusBar()->showMessage(QStringLiteral("默认参数：115200 / 8 数据位 / 无校验 / 1 停止位 / 无流控"));
+    statusBar()->showMessage(QStringLiteral("默认参数：921600 / 8 数据位 / 无校验 / 1 停止位 / 无流控"));
 }
 
 void MainWindow::refreshPorts()
@@ -298,6 +300,21 @@ void MainWindow::sendData()
         : QString::fromUtf8(data).replace(QStringLiteral("\r"), QStringLiteral("\\r"))
                                  .replace(QStringLiteral("\n"), QStringLiteral("\\n"));
     appendLog(QStringLiteral("TX"), display);
+}
+
+void MainWindow::requestSnapshot()
+{
+    if (!m_serialController->isOpen() || m_waitingForSnapshot) {
+        return;
+    }
+
+    m_serialController->writeData(QByteArrayLiteral("SNAP\n"));
+    appendLog(QStringLiteral("TX"), QStringLiteral("SNAP\\n"));
+    m_waitingForSnapshot = true;
+    m_snapshotTimer.restart();
+    m_snapshotButton->setEnabled(false);
+    m_imageInfoLabel->setText(QStringLiteral("正在等待图像…"));
+    statusBar()->showMessage(QStringLiteral("已发送 SNAP，正在等待图像"));
 }
 
 void MainWindow::sendTestFrame()
@@ -399,14 +416,40 @@ void MainWindow::handleConsoleData(const QByteArray &data)
 
 void MainWindow::handleFrame(const QImage &image, const QString &description)
 {
+    const qint64 elapsedMs = m_waitingForSnapshot && m_snapshotTimer.isValid()
+        ? m_snapshotTimer.elapsed() : -1;
     m_lastImage = image;
     ++m_frameCount;
     updateImageDisplay();
-    m_imageInfoLabel->setText(
-        QStringLiteral("帧 #%1 | %2").arg(m_frameCount).arg(description));
+    const QString timing = elapsedMs >= 0
+        ? QStringLiteral(" | 接收耗时 %1 ms").arg(elapsedMs)
+        : QString();
+    m_imageInfoLabel->setText(QStringLiteral("帧 #%1 | %2%3")
+                                  .arg(m_frameCount)
+                                  .arg(description, timing));
+    m_waitingForSnapshot = false;
+    m_snapshotButton->setEnabled(m_serialController->isOpen());
     m_saveImageButton->setEnabled(true);
     m_clearImageButton->setEnabled(true);
-    statusBar()->showMessage(QStringLiteral("已接收图像帧 #%1").arg(m_frameCount), 2000);
+    statusBar()->showMessage(
+        elapsedMs >= 0
+            ? QStringLiteral("已接收图像帧 #%1，耗时 %2 ms")
+                  .arg(m_frameCount).arg(elapsedMs)
+            : QStringLiteral("已接收图像帧 #%1").arg(m_frameCount),
+        4000);
+}
+
+void MainWindow::handleFrameError(const QString &message)
+{
+    appendLog(QStringLiteral("FRAME"), message);
+    if (message.contains(QStringLiteral("CRC32"), Qt::CaseInsensitive)) {
+        m_imageInfoLabel->setText(QStringLiteral("CRC 校验失败，串口连接保持可用"));
+        statusBar()->showMessage(QStringLiteral("图像 CRC 校验失败；可重新拍摄"), 5000);
+    } else {
+        statusBar()->showMessage(message, 5000);
+    }
+    m_waitingForSnapshot = false;
+    m_snapshotButton->setEnabled(m_serialController->isOpen());
 }
 
 void MainWindow::handlePortOpened(const QString &portName, qint32 baudRate)
@@ -419,6 +462,7 @@ void MainWindow::handlePortOpened(const QString &portName, qint32 baudRate)
 void MainWindow::handlePortClosed()
 {
     m_frameParser->reset();
+    m_waitingForSnapshot = false;
     updateConnectionUi(false);
     appendLog(QStringLiteral("SYS"), QStringLiteral("串口已断开"));
 }
@@ -440,6 +484,7 @@ void MainWindow::updateConnectionUi(bool connected)
     m_sendHexCheck->setEnabled(connected);
     m_lineEndingCombo->setEnabled(connected);
     m_testFrameButton->setEnabled(connected);
+    m_snapshotButton->setEnabled(connected && !m_waitingForSnapshot);
     m_connectionState->setText(connected ? QStringLiteral("已连接") : QStringLiteral("未连接"));
     m_connectionState->setStyleSheet(connected
         ? QStringLiteral("color: #067647; font-weight: 600;")

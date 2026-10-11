@@ -4,9 +4,10 @@
 #include "camera_driver.h"
 #include "lvgl.h"
 #include "product_config.h"
+#include "resource_budget.h"
 
 #define RVM_LVGL_BUFFER_LINES  8U
-#define RVM_LVGL_DRAW_BUFFER   ((lv_color_t *)0x6C010000U)
+#define RVM_LVGL_DRAW_BUFFER   ((lv_color_t *)RVM_LVGL_DRAW_BUFFER_BASE)
 
 static lv_disp_draw_buf_t s_draw_buffer;
 static lv_disp_drv_t s_display_driver;

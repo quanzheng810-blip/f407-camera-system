@@ -8,6 +8,7 @@ typedef enum
 {
     RVM_CAMERA_STATE_UNINITIALIZED = 0,
     RVM_CAMERA_STATE_IDLE,
+    RVM_CAMERA_STATE_CAPTURING,
     RVM_CAMERA_STATE_STREAMING,
     RVM_CAMERA_STATE_ERROR
 } RVM_CameraState;
@@ -44,6 +45,10 @@ RVM_CameraServiceStatus RVM_CameraService_Init(
     const RVM_CameraConfig *config);
 RVM_CameraServiceStatus RVM_CameraService_Start(void);
 RVM_CameraServiceStatus RVM_CameraService_Stop(void);
+RVM_CameraServiceStatus RVM_CameraService_CaptureFrame(uint8_t *destination,
+                                                       uint32_t byte_count);
+bool RVM_CameraService_IsFrameReady(void);
+RVM_CameraServiceStatus RVM_CameraService_AbortCapture(void);
 RVM_CameraServiceStatus RVM_CameraService_Restart(
     const RVM_CameraConfig *config);
 RVM_CameraServiceStatus RVM_CameraService_ToggleFocus(void);

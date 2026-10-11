@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QByteArray>
+#include <QElapsedTimer>
 #include <QImage>
 #include <QMainWindow>
 
@@ -31,12 +32,14 @@ private slots:
     void refreshPorts();
     void toggleConnection();
     void sendData();
+    void requestSnapshot();
     void sendTestFrame();
     void saveImage();
     void clearImage();
     void handleSerialData(const QByteArray &data);
     void handleConsoleData(const QByteArray &data);
     void handleFrame(const QImage &image, const QString &description);
+    void handleFrameError(const QString &message);
     void handlePortOpened(const QString &portName, qint32 baudRate);
     void handlePortClosed();
     void showSerialError(const QString &message);
@@ -60,6 +63,7 @@ private:
     QPushButton *m_saveImageButton;
     QPushButton *m_clearImageButton;
     QPushButton *m_testFrameButton;
+    QPushButton *m_snapshotButton;
     QPlainTextEdit *m_receiveLog;
     QCheckBox *m_receiveHexCheck;
     QCheckBox *m_timestampCheck;
@@ -72,6 +76,8 @@ private:
     qint64 m_receivedBytes = 0;
     qint64 m_transmittedBytes = 0;
     quint64 m_frameCount = 0;
+    QElapsedTimer m_snapshotTimer;
+    bool m_waitingForSnapshot = false;
 };
 
 #endif // MAINWINDOW_H

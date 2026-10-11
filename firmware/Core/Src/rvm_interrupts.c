@@ -1,6 +1,7 @@
 #include "stm32f4xx_it.h"
 
 #include "camera_driver.h"
+#include "bsp_debug_usart.h"
 
 void NMI_Handler(void)
 {
@@ -41,4 +42,14 @@ void DebugMon_Handler(void)
 void DCMI_IRQHandler(void)
 {
     RVM_CameraDriver_OnFrameIrq();
+}
+
+void USART1_IRQHandler(void)
+{
+    Debug_USART_OnIrq();
+}
+
+void DMA2_Stream7_IRQHandler(void)
+{
+    Debug_USART_OnTxDmaIrq();
 }

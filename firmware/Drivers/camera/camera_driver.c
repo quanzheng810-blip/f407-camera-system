@@ -1,6 +1,8 @@
 #include "camera_driver.h"
 
 #include "bsp_ov5640.h"
+#include "dcmi_framebuffer.h"
+#include "feature_config.h"
 #include "ov5640_AF.h"
 
 static bool s_initialized;
@@ -26,7 +28,11 @@ RVM_CameraDriverStatus RVM_CameraDriver_Init(uint16_t *product_id)
         return RVM_CAMERA_DRIVER_NOT_FOUND;
     }
 
+#if RVM_FEATURE_DISPLAY
     OV5640_Init();
+#else
+    RVM_DcmiFrame_Init();
+#endif
     OV5640_RGB565_Default_Config();
     (void)OV5640_FOCUS_AD5820_Init();
 
@@ -90,9 +96,13 @@ RVM_CameraDriverStatus RVM_CameraDriver_Start(void)
         return RVM_CAMERA_DRIVER_NOT_READY;
     }
 
+#if RVM_FEATURE_DISPLAY
     OV5640_Capture_Control(ENABLE);
     s_running = true;
     return RVM_CAMERA_DRIVER_OK;
+#else
+    return RVM_CAMERA_DRIVER_ERROR;
+#endif
 }
 
 RVM_CameraDriverStatus RVM_CameraDriver_Stop(void)
@@ -102,9 +112,49 @@ RVM_CameraDriverStatus RVM_CameraDriver_Stop(void)
         return RVM_CAMERA_DRIVER_NOT_READY;
     }
 
+#if RVM_FEATURE_DISPLAY
     OV5640_Capture_Control(DISABLE);
+#else
+    RVM_DcmiFrame_Stop();
+#endif
     s_running = false;
     return RVM_CAMERA_DRIVER_OK;
+}
+
+RVM_CameraDriverStatus RVM_CameraDriver_CaptureFrame(uint8_t *destination,
+                                                    uint32_t byte_count)
+{
+    if ((!s_initialized) || s_running)
+    {
+        return RVM_CAMERA_DRIVER_NOT_READY;
+    }
+    if ((destination == 0) || (byte_count == 0U))
+    {
+        return RVM_CAMERA_DRIVER_INVALID_ARGUMENT;
+    }
+
+    if (!RVM_DcmiFrame_Start(destination, byte_count))
+    {
+        return RVM_CAMERA_DRIVER_ERROR;
+    }
+    s_running = true;
+    return RVM_CAMERA_DRIVER_OK;
+}
+
+bool RVM_CameraDriver_IsFrameComplete(void)
+{
+    if (s_running && RVM_DcmiFrame_IsComplete())
+    {
+        RVM_DcmiFrame_Stop();
+        s_running = false;
+        return true;
+    }
+    return false;
+}
+
+bool RVM_CameraDriver_HasCaptureError(void)
+{
+    return RVM_DcmiFrame_HasError();
 }
 
 RVM_CameraDriverStatus RVM_CameraDriver_ToggleFocus(void)
@@ -140,10 +190,17 @@ uint32_t RVM_CameraDriver_GetFrameCount(void)
 
 void RVM_CameraDriver_OnFrameIrq(void)
 {
+#if RVM_FEATURE_DISPLAY
     if (DCMI_GetITStatus(DCMI_IT_FRAME) == SET)
     {
         DCMI_ClearITPendingBit(DCMI_IT_FRAME);
         ++s_frame_count;
     }
+#else
+    if (RVM_DcmiFrame_OnIrq())
+    {
+        ++s_frame_count;
+    }
+#endif
 }
 
