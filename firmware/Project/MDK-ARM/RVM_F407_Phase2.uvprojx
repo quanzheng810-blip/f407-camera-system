@@ -1,7 +1,10 @@
-<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <Project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="project_projx.xsd">
+
   <SchemaVersion>2.1</SchemaVersion>
+
   <Header>### uVision Project, (C) Keil Software</Header>
+
   <Targets>
     <Target>
       <TargetName>RVM_F407_Phase2</TargetName>
@@ -335,7 +338,7 @@
               <MiscControls>--diag_suppress=1,68,111,128,188,546</MiscControls>
               <Define>USE_STDPERIPH_DRIVER,STM32F40_41xxx,RVM_BOARD_BATIANHU_V2,RVM_LCD_ILI9806G,LV_CONF_INCLUDE_SIMPLE</Define>
               <Undefine></Undefine>
-              <IncludePath>..\..\Platform\CMSIS\Include;..\..\Platform\CMSIS\Device\ST\STM32F4xx\Include;..\..\Platform\STM32F4xx_StdPeriph_Driver\inc;..\..\Core\Inc;..\..\Board;..\..\Drivers;..\..\Drivers\camera;..\..\Drivers\lcd;..\..\Drivers\key;..\..\Drivers\led;..\..\Drivers\sram;..\..\Drivers\systick;..\..\Drivers\usart;..\..\Components;..\..\Components\buffer_pool\include;..\..\Components\font;..\..\Components\logging\include;..\..\Components\metrics\include;..\..\Components\timebase\include;..\..\Services\camera\include;..\..\Services\display\include;..\..\Services\network\include;..\..\Services\system\include;..\..\App\include;..\..\Config;..\..\Middleware\FreeRTOS\Source\include;..\..\Middleware\FreeRTOS\Source\portable\RVDS\ARM_CM4F;..\..\Middleware\LVGL;..\..\Middleware\LVGL\src;..\..\Middleware\LVGL\port;..\..\Services\ui\include;..\..\Drivers\ethernet;..\..\Drivers\ethernet\legacy\inc;..\..\Middleware\lwIP\include;..\..\Middleware\lwIP\port;..\..\Middleware\lwIP\port\arch</IncludePath>
+              <IncludePath>..\..\Platform\CMSIS\Include;..\..\Platform\CMSIS\Device\ST\STM32F4xx\Include;..\..\Platform\STM32F4xx_StdPeriph_Driver\inc;..\..\Core\Inc;..\..\Board;..\..\Drivers;..\..\Drivers\camera;..\..\Drivers\lcd;..\..\Drivers\key;..\..\Drivers\led;..\..\Drivers\sram;..\..\Drivers\systick;..\..\Drivers\usart;..\..\Components;..\..\Components\buffer_pool\include;..\..\Components\serial_protocol\include;..\..\Components\font;..\..\Components\logging\include;..\..\Components\metrics\include;..\..\Components\timebase\include;..\..\Services\camera\include;..\..\Services\display\include;..\..\Services\network\include;..\..\Services\serial_image\include;..\..\Services\system\include;..\..\App\include;..\..\Config;..\..\Middleware\FreeRTOS\Source\include;..\..\Middleware\FreeRTOS\Source\portable\RVDS\ARM_CM4F;..\..\Middleware\LVGL;..\..\Middleware\LVGL\src;..\..\Middleware\LVGL\port;..\..\Services\ui\include;..\..\Drivers\ethernet;..\..\Drivers\ethernet\legacy\inc;..\..\Middleware\lwIP\include;..\..\Middleware\lwIP\port;..\..\Middleware\lwIP\port\arch</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -753,6 +756,11 @@
               <FilePath>..\..\Drivers\camera\camera_driver.c</FilePath>
             </File>
             <File>
+              <FileName>dcmi_framebuffer.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Drivers\camera\dcmi_framebuffer.c</FilePath>
+            </File>
+            <File>
               <FileName>bsp_ili9806g_lcd.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\Drivers\lcd\bsp_ili9806g_lcd.c</FilePath>
@@ -763,9 +771,9 @@
               <FilePath>..\..\Drivers\lcd\display_driver.c</FilePath>
             </File>
             <File>
-              <FileName>bsp_debug_usart.c</FileName>
+              <FileName>bsp_debug_usart_dma.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\Drivers\usart\bsp_debug_usart.c</FilePath>
+              <FilePath>..\..\Drivers\usart\bsp_debug_usart_dma.c</FilePath>
             </File>
             <File>
               <FileName>bsp_SysTick.c</FileName>
@@ -2032,6 +2040,16 @@
               <FileType>1</FileType>
               <FilePath>..\..\Components\metrics\src\rvm_metrics.c</FilePath>
             </File>
+            <File>
+              <FileName>video_buffer.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Components\buffer_pool\src\video_buffer.c</FilePath>
+            </File>
+            <File>
+              <FileName>serial_protocol.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Components\serial_protocol\src\serial_protocol.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -2061,6 +2079,11 @@
               <FileName>network_service.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\Services\network\src\network_service.c</FilePath>
+            </File>
+            <File>
+              <FileName>serial_image_service.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Services\serial_image\src\serial_image_service.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -2097,9 +2120,11 @@
       </Groups>
     </Target>
   </Targets>
+
   <RTE>
-    <apis />
-    <components />
-    <files />
+    <apis/>
+    <components/>
+    <files/>
   </RTE>
+
 </Project>

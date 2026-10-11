@@ -1,12 +1,51 @@
 #include "camera_driver.h"
 
 #include "bsp_ov5640.h"
+#include "dcmi_framebuffer.h"
+#include "feature_config.h"
 #include "ov5640_AF.h"
+#include "product_config.h"
 
 static bool s_initialized;
 static bool s_running;
 static bool s_focus_running;
 static volatile uint32_t s_frame_count;
+static VideoFormat s_format = VIDEO_FORMAT_RGB565;
+
+static bool RVM_CameraDriver_ConfigureJpeg(void)
+{
+    uint8_t value;
+
+    if ((OV5640_WriteReg(0x4300U, 0x30U) != 0U) ||
+        (OV5640_WriteReg(0x501FU, 0x00U) != 0U) ||
+        (OV5640_WriteReg(0x4713U, 0x03U) != 0U) ||
+        (OV5640_WriteReg(0x4407U, RVM_CAMERA_JPEG_QUALITY) != 0U))
+    {
+        return false;
+    }
+
+    value = OV5640_ReadReg(0x3821U);
+    if ((value == 0xFFU) ||
+        (OV5640_WriteReg(0x3821U, (uint8_t)(value | 0x20U)) != 0U))
+    {
+        return false;
+    }
+
+    value = OV5640_ReadReg(0x3002U);
+    if ((value == 0xFFU) ||
+        (OV5640_WriteReg(0x3002U, (uint8_t)(value & ~0x1CU)) != 0U))
+    {
+        return false;
+    }
+
+    value = OV5640_ReadReg(0x3006U);
+    if ((value == 0xFFU) ||
+        (OV5640_WriteReg(0x3006U, (uint8_t)(value | 0x28U)) != 0U))
+    {
+        return false;
+    }
+    return true;
+}
 
 RVM_CameraDriverStatus RVM_CameraDriver_Init(uint16_t *product_id)
 {
@@ -26,7 +65,11 @@ RVM_CameraDriverStatus RVM_CameraDriver_Init(uint16_t *product_id)
         return RVM_CAMERA_DRIVER_NOT_FOUND;
     }
 
+#if RVM_FEATURE_DISPLAY
     OV5640_Init();
+#else
+    RVM_DcmiFrame_Init();
+#endif
     OV5640_RGB565_Default_Config();
     (void)OV5640_FOCUS_AD5820_Init();
 
@@ -74,6 +117,18 @@ RVM_CameraDriverStatus RVM_CameraDriver_Configure(
 
     OV5640_USER_Config();
 
+    if ((config->format != VIDEO_FORMAT_RGB565) &&
+        (config->format != VIDEO_FORMAT_JPEG))
+    {
+        return RVM_CAMERA_DRIVER_INVALID_ARGUMENT;
+    }
+    if ((config->format == VIDEO_FORMAT_JPEG) &&
+        !RVM_CameraDriver_ConfigureJpeg())
+    {
+        return RVM_CAMERA_DRIVER_ERROR;
+    }
+    s_format = config->format;
+
     if (config->auto_focus)
     {
         (void)OV5640_FOCUS_AD5820_Constant_Focus();
@@ -90,9 +145,13 @@ RVM_CameraDriverStatus RVM_CameraDriver_Start(void)
         return RVM_CAMERA_DRIVER_NOT_READY;
     }
 
+#if RVM_FEATURE_DISPLAY
     OV5640_Capture_Control(ENABLE);
     s_running = true;
     return RVM_CAMERA_DRIVER_OK;
+#else
+    return RVM_CAMERA_DRIVER_ERROR;
+#endif
 }
 
 RVM_CameraDriverStatus RVM_CameraDriver_Stop(void)
@@ -102,9 +161,56 @@ RVM_CameraDriverStatus RVM_CameraDriver_Stop(void)
         return RVM_CAMERA_DRIVER_NOT_READY;
     }
 
+#if RVM_FEATURE_DISPLAY
     OV5640_Capture_Control(DISABLE);
+#else
+    RVM_DcmiFrame_Stop();
+#endif
     s_running = false;
     return RVM_CAMERA_DRIVER_OK;
+}
+
+RVM_CameraDriverStatus RVM_CameraDriver_CaptureFrame(uint8_t *destination,
+                                                    uint32_t byte_count)
+{
+    if ((!s_initialized) || s_running)
+    {
+        return RVM_CAMERA_DRIVER_NOT_READY;
+    }
+    if ((destination == 0) || (byte_count == 0U))
+    {
+        return RVM_CAMERA_DRIVER_INVALID_ARGUMENT;
+    }
+
+    if (!RVM_DcmiFrame_Start(destination,
+                             byte_count,
+                             s_format == VIDEO_FORMAT_JPEG))
+    {
+        return RVM_CAMERA_DRIVER_ERROR;
+    }
+    s_running = true;
+    return RVM_CAMERA_DRIVER_OK;
+}
+
+bool RVM_CameraDriver_IsFrameComplete(void)
+{
+    if (s_running && RVM_DcmiFrame_IsComplete())
+    {
+        RVM_DcmiFrame_Stop();
+        s_running = false;
+        return true;
+    }
+    return false;
+}
+
+uint32_t RVM_CameraDriver_GetCapturedBytes(void)
+{
+    return RVM_DcmiFrame_GetCapturedBytes();
+}
+
+bool RVM_CameraDriver_HasCaptureError(void)
+{
+    return RVM_DcmiFrame_HasError();
 }
 
 RVM_CameraDriverStatus RVM_CameraDriver_ToggleFocus(void)
@@ -140,10 +246,17 @@ uint32_t RVM_CameraDriver_GetFrameCount(void)
 
 void RVM_CameraDriver_OnFrameIrq(void)
 {
+#if RVM_FEATURE_DISPLAY
     if (DCMI_GetITStatus(DCMI_IT_FRAME) == SET)
     {
         DCMI_ClearITPendingBit(DCMI_IT_FRAME);
         ++s_frame_count;
     }
+#else
+    if (RVM_DcmiFrame_OnIrq())
+    {
+        ++s_frame_count;
+    }
+#endif
 }
 

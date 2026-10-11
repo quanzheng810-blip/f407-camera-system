@@ -11,10 +11,10 @@
 /* Phase 1 hardware baseline derived from the official Embedfire example.
  * Physical board verification is still required before acceptance. */
 #define RVM_BOARD_CAMERA_ENABLED    1
-#define RVM_BOARD_LCD_ENABLED       1
+#define RVM_BOARD_LCD_ENABLED       0
 #define RVM_BOARD_ETHERNET_ENABLED  0
 #define RVM_BOARD_TOUCH_ENABLED     0
-#define RVM_BOARD_EXT_RAM_ENABLED   0
+#define RVM_BOARD_EXT_RAM_ENABLED   1
 
 #define RVM_LCD_CONTROLLER_ILI9806G 1
 #define RVM_LCD_NATIVE_WIDTH        480U
@@ -25,7 +25,7 @@
  * - OV5640 PWDN/RESET: PC0/PF10
  * - DCMI sync: PB7/PA4/PA6
  * - DCMI data: PC6..PC9, PE4..PE6, PB6
- * - Debug UART: USART1 PA9/PA10 at 115200 baud
+ * - Debug/image UART: USART1 PA9/PA10, build-selectable baud rate
  * - Buttons: KEY1 PA0, KEY2 PC13
  * - LCD: FSMC Bank1 NOR/SRAM3, 16-bit bus, command 0x68000000,
  *   data 0x68000002

@@ -10,12 +10,22 @@
 #include "system_service.h"
 
 static const RVM_CameraConfig s_camera_config = {
+#if RVM_FEATURE_SERIAL_IMAGE
+    RVM_SERIAL_IMAGE_WIDTH,
+    RVM_SERIAL_IMAGE_HEIGHT,
+#else
     RVM_CAMERA_PREVIEW_WIDTH,
     RVM_CAMERA_PREVIEW_HEIGHT,
+#endif
     RVM_CAMERA_PREVIEW_LCD_X,
     RVM_CAMERA_PREVIEW_LCD_Y,
     RVM_LCD_SCAN_MODE,
-    true
+#if RVM_FEATURE_SERIAL_IMAGE && RVM_SERIAL_IMAGE_USE_JPEG
+    VIDEO_FORMAT_JPEG,
+#else
+    VIDEO_FORMAT_RGB565,
+#endif
+    RVM_FEATURE_AUTO_FOCUS != 0
 };
 
 void RVM_App_Init(void)
@@ -24,13 +34,17 @@ void RVM_App_Init(void)
     RVM_CameraStats camera_stats;
 
     RVM_SystemService_Init();
+#if RVM_FEATURE_DISPLAY
     RVM_DisplayService_Init(RVM_LCD_SCAN_MODE);
+#endif
     RVM_LOG_INFO("System", "%s boot", RVM_PRODUCT_NAME);
 
     camera_status = RVM_CameraService_Init(&s_camera_config);
     if (camera_status != RVM_CAMERA_SERVICE_OK)
     {
+#if RVM_FEATURE_DISPLAY
         RVM_DisplayService_ShowCameraError();
+#endif
         RVM_SystemService_SetState(RVM_SYSTEM_STATE_ERROR);
         RVM_LOG_ERROR("Camera", "OV5640 initialization failed: %d",
                       camera_status);
@@ -38,16 +52,21 @@ void RVM_App_Init(void)
     }
 
     camera_stats = RVM_CameraService_GetStats();
+#if RVM_FEATURE_DISPLAY
     RVM_DisplayService_ShowCameraDetected(camera_stats.product_id);
+#endif
     RVM_LOG_INFO("Camera", "OV5640 detected: 0x%04X",
                  camera_stats.product_id);
 
+#if RVM_FEATURE_DISPLAY
     RVM_DisplayService_PreparePreview(s_camera_config.lcd_x,
                                       s_camera_config.lcd_y,
                                       s_camera_config.width,
                                       s_camera_config.height,
                                       s_camera_config.lcd_scan_mode);
+#endif
 
+#if RVM_FEATURE_DISPLAY
     if (RVM_CameraService_Start() != RVM_CAMERA_SERVICE_OK)
     {
         RVM_SystemService_SetState(RVM_SYSTEM_STATE_ERROR);
@@ -62,10 +81,19 @@ void RVM_App_Init(void)
     RVM_LOG_INFO("System", "streaming %ux%u RGB565",
                  s_camera_config.width,
                  s_camera_config.height);
+#else
+    RVM_SystemService_SetState(RVM_SYSTEM_STATE_READY);
+    RVM_LOG_INFO("System", "headless snapshot mode %ux%u %s",
+                 s_camera_config.width,
+                 s_camera_config.height,
+                 s_camera_config.format == VIDEO_FORMAT_JPEG
+                     ? "JPEG" : "RGB565");
+#endif
 }
 
 void RVM_App_Run(void)
 {
+#if RVM_FEATURE_DISPLAY
     RVM_SystemCommand command;
     RVM_CameraStats camera_stats;
     RVM_VideoMetrics metrics;
@@ -109,4 +137,5 @@ void RVM_App_Run(void)
                      metrics.total_frames,
                      camera_stats.capture_errors);
     }
+#endif
 }

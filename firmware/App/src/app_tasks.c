@@ -3,7 +3,9 @@
 #include "app_main.h"
 #include "camera_service.h"
 #include "network_service.h"
+#include "feature_config.h"
 #include "rvm_log.h"
+#include "serial_image_service.h"
 #include "ui_service.h"
 
 #include "FreeRTOS.h"
@@ -17,14 +19,28 @@ static void RVM_AppTask(void *argument)
     (void)argument;
 
     RVM_App_Init();
+#if RVM_FEATURE_LVGL
     RVM_UIService_Init();
+#endif
+#if RVM_FEATURE_NETWORK
     (void)RVM_NetworkService_Init();
+#endif
+#if RVM_FEATURE_SERIAL_IMAGE
+    RVM_SerialImageService_Init();
+#endif
 
     for (;;)
     {
         RVM_App_Run();
+#if RVM_FEATURE_NETWORK
         RVM_NetworkService_Process();
+#endif
+#if RVM_FEATURE_LVGL
         RVM_UIService_Process();
+#endif
+#if RVM_FEATURE_SERIAL_IMAGE
+        RVM_SerialImageService_Process();
+#endif
         vTaskDelay(pdMS_TO_TICKS(5U));
     }
 }

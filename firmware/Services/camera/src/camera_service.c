@@ -49,6 +49,7 @@ RVM_CameraServiceStatus RVM_CameraService_Init(
     driver_config.lcd_x = config->lcd_x;
     driver_config.lcd_y = config->lcd_y;
     driver_config.lcd_scan_mode = config->lcd_scan_mode;
+    driver_config.format = config->format;
     driver_config.auto_focus = config->auto_focus;
 
     driver_status = RVM_CameraDriver_Configure(&driver_config);
@@ -105,6 +106,79 @@ RVM_CameraServiceStatus RVM_CameraService_Stop(void)
     return RVM_CAMERA_SERVICE_OK;
 }
 
+RVM_CameraServiceStatus RVM_CameraService_CaptureFrame(uint8_t *destination,
+                                                       uint32_t byte_count)
+{
+    RVM_CameraDriverStatus status;
+
+    if ((destination == 0) || (byte_count == 0U))
+    {
+        return RVM_CAMERA_SERVICE_INVALID_ARGUMENT;
+    }
+    if (s_state != RVM_CAMERA_STATE_IDLE)
+    {
+        return RVM_CAMERA_SERVICE_INVALID_STATE;
+    }
+
+    status = RVM_CameraDriver_CaptureFrame(destination, byte_count);
+    if (status != RVM_CAMERA_DRIVER_OK)
+    {
+        ++s_capture_errors;
+        return RVM_CameraService_MapDriverStatus(status);
+    }
+
+    s_state = RVM_CAMERA_STATE_CAPTURING;
+    return RVM_CAMERA_SERVICE_OK;
+}
+
+bool RVM_CameraService_IsFrameReady(void)
+{
+    if (s_state != RVM_CAMERA_STATE_CAPTURING)
+    {
+        return false;
+    }
+
+    if (RVM_CameraDriver_HasCaptureError())
+    {
+        (void)RVM_CameraDriver_Stop();
+        s_state = RVM_CAMERA_STATE_ERROR;
+        ++s_capture_errors;
+        return false;
+    }
+
+    if (RVM_CameraDriver_IsFrameComplete())
+    {
+        s_state = RVM_CAMERA_STATE_IDLE;
+        return true;
+    }
+    return false;
+}
+
+uint32_t RVM_CameraService_GetCapturedBytes(void)
+{
+    return RVM_CameraDriver_GetCapturedBytes();
+}
+
+RVM_CameraServiceStatus RVM_CameraService_AbortCapture(void)
+{
+    RVM_CameraDriverStatus status;
+
+    if (s_state != RVM_CAMERA_STATE_CAPTURING)
+    {
+        return RVM_CAMERA_SERVICE_INVALID_STATE;
+    }
+
+    status = RVM_CameraDriver_Stop();
+    if (status != RVM_CAMERA_DRIVER_OK)
+    {
+        s_state = RVM_CAMERA_STATE_ERROR;
+        ++s_capture_errors;
+        return RVM_CameraService_MapDriverStatus(status);
+    }
+    s_state = RVM_CAMERA_STATE_IDLE;
+    return RVM_CAMERA_SERVICE_OK;
+}
+
 RVM_CameraServiceStatus RVM_CameraService_Restart(
     const RVM_CameraConfig *config)
 {
@@ -124,6 +198,7 @@ RVM_CameraServiceStatus RVM_CameraService_Restart(
     driver_config.lcd_x = config->lcd_x;
     driver_config.lcd_y = config->lcd_y;
     driver_config.lcd_scan_mode = config->lcd_scan_mode;
+    driver_config.format = config->format;
     driver_config.auto_focus = config->auto_focus;
     status = RVM_CameraDriver_Configure(&driver_config);
     if (status != RVM_CAMERA_DRIVER_OK)
